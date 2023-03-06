@@ -4,7 +4,7 @@ SOURCE=$(wildcard *.c)
 OBJS=$(SOURCE:.c=.o)
 
 
-.PHONY: all clean
+.PHONY: writer clean
 
 writer: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS)
