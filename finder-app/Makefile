@@ -4,10 +4,12 @@ SOURCE=$(wildcard *.c)
 OBJS=$(SOURCE:.c=.o)
 
 
-.PHONY: writer clean
+.PHONY: all writer clean
 
-writer: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+all: clean writer
+
+writer:
+	$(CC) $(CFLAGS) -o $@ $@.c
 
 clean:
 	@rm -rf writer $(OBJS)
