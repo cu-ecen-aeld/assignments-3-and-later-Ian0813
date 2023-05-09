@@ -8,3 +8,6 @@ aesd-build
 test.sh.log
 actions-runner
 testfile.txt
+server/test
+server/socket_test.sh
+server/english.txt
