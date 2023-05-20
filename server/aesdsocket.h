@@ -29,4 +29,5 @@
 #define ERROR_HANDLER(func) { perror(#func); exit(EXIT_FAILURE); }
 //#define USER_LOGGING(format, addr, port) syslog(LOG_DEBUG, format, addr, port)
 #define USER_LOGGING(format, addr) syslog(LOG_DEBUG, format, addr)
+extern int signal_sign;
 #endif
