@@ -197,7 +197,7 @@ int tcp_select(int sockfd) {
     fd_set readfds;
     struct timeval time = {0, 0};
 
-    time.tv_sec = 5;
+    time.tv_sec = 60;
 
     FD_ZERO(&readfds);
     FD_CLR(sockfd, &readfds);
@@ -241,7 +241,7 @@ int main(int argc, char *argv[]) {
     socklen_t addrlen;
     
     memset(&serv, 0 ,sizeof(struct sockaddr));
-    serv.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    serv.sin_addr.s_addr = htonl(INADDR_ANY);
     serv.sin_port = htons(9000);
     serv.sin_family = AF_INET;
     tcpfd = (struct fdset *) malloc(sizeof(struct fdset));
