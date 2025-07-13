@@ -18,6 +18,14 @@
 
 #define AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED 10
 
+#define DEBUG_OPT (0U)
+
+#if (DEBUG_OPT)
+#define AESD_DEBUG_MSG(stream, fmt, ...) fprintf(stream, fmt, __VA_ARGS__)
+#else
+#define AESD_DEBUG_MSG(stream, fmt, ...)
+#endif
+
 struct aesd_buffer_entry
 {
     /**
@@ -77,6 +85,9 @@ extern void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer);
             index<AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; \
             index++, entryptr=&((buffer)->entry[index]))
 
-
+#define GET_BLOCKS_LENGTH(buffer) \
+    buffer->in_offs > buffer->out_offs ? \
+    (buffer->in_offs - buffer->out_offs) : \
+    (AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - buffer->out_offs) + buffer->in_offs
 
 #endif /* AESD_CIRCULAR_BUFFER_H */

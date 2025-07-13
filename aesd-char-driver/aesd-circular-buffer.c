@@ -14,6 +14,7 @@
 #include <string.h>
 #endif
 
+#include <stdio.h>
 #include "aesd-circular-buffer.h"
 
 /**
@@ -32,7 +33,41 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     /**
     * TODO: implement per description
     */
-    return NULL;
+    int offset = 0, block_length = 0, index = 0;
+    struct aesd_buffer_entry *target_ptr = NULL;
+
+    if (buffer->full) {
+        block_length = AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    } else {
+        block_length = GET_BLOCKS_LENGTH(buffer);
+    }
+
+    AESD_DEBUG_MSG(stdout, "\n\n[%s] blocks length: %d\n", __func__, block_length);
+
+    while (offset < block_length) {
+
+        AESD_DEBUG_MSG(stdout, "Loop....., block_length: %d, position: %d\n", block_length, buffer->out_offs+offset);
+        index = (buffer->out_offs+offset) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+
+        if (char_offset >= buffer->entry[index].size) {
+            AESD_DEBUG_MSG(stdout, "%s", buffer->entry[index].buffptr);
+            AESD_DEBUG_MSG(stdout, "char_offset: %ld\n\n", char_offset);
+            char_offset -= (buffer->entry[index].size);
+        } else {
+            AESD_DEBUG_MSG(stdout, "Break, char_offset: %ld", char_offset);
+            break;
+        }
+        offset++;
+    }
+
+    if (offset < block_length) {
+        *entry_offset_byte_rtn = char_offset;
+        target_ptr = &buffer->entry[index];
+    } else {
+        printf("No available data.\n");
+    }
+
+    return target_ptr;
 }
 
 /**
@@ -47,6 +82,21 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     /**
     * TODO: implement per description
     */
+
+    AESD_DEBUG_MSG(stdout, "\nEnter [%s] out: %d, in: %d\n", __func__, buffer->out_offs, buffer->in_offs);
+
+    if (!buffer->full) {
+        buffer->full = ((buffer->in_offs+1)%AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) == buffer->out_offs ? 1 : 0;
+    } else {
+        buffer->out_offs = (buffer->out_offs+1)%AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    }
+
+    memcpy(&buffer->entry[buffer->in_offs], add_entry, sizeof(struct aesd_buffer_entry));
+    buffer->in_offs = (buffer->in_offs+1)%AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+
+    AESD_DEBUG_MSG(stdout, "\nExit [%s] out: %d, in: %d, full: %d\n", __func__, buffer->out_offs, buffer->in_offs, buffer->full);
+
+    return;
 }
 
 /**
