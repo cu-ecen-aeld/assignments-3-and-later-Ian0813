@@ -1,4 +1,15 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <syslog.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,8 +27,15 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
-    return true;
+    int retval = system(cmd);
+    if (cmd == NULL) {
+        return retval != 0 ? true : false;
+    } else {
+        if (WIFEXITED(retval) && !WEXITSTATUS(retval)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -39,15 +57,19 @@ bool do_exec(int count, ...)
     va_list args;
     va_start(args, count);
     char * command[count+1];
-    int i;
+    int i, retval;
+    pid_t pid;
+
+    /* Open the system log that's for records if something goes wrong */
+    openlog(NULL, LOG_PID, LOG_SYSLOG);
+
+    /* Initialize the command array with 0 */
+    memset(command, 0, sizeof(command));
+
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
     }
-    command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
 /*
  * TODO:
@@ -58,10 +80,49 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    if ((pid = fork()) == -1) {
+        syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+        goto ERROR;
+    } else if (!pid) {
+        if (execv(command[0], command) == -1) {
+            /* In this situation, it needs to call to exit with EXIT_FAILURE to avoid
+             * WEXITSTATUS() misunderstanding the return status of a child process. */
+            syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+            va_end(args);
+            closelog();
+            exit(EXIT_FAILURE);
+        }
+    } else if (waitpid(pid, &retval, 0) != -1) {
+        if (WIFEXITED(retval)) {
+            if (!WEXITSTATUS(retval)) {
+                goto SUCCESS;
+            } else {
+                syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+                goto ERROR;
+            }
+        }
+    } else {
+        syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+        goto ERROR;
+    }
 
+
+ERROR:;
     va_end(args);
-
+    closelog();
+    return false;
+SUCCESS:;
+    va_end(args);
+    closelog();
     return true;
+}
+
+/* file_close: clase a file descriptor */
+void file_close(int fd) {
+    if (fd != -1) {
+        close(fd);
+	}
+	return;
 }
 
 /**
@@ -74,16 +135,18 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     va_list args;
     va_start(args, count);
     char * command[count+1];
-    int i;
+    int i, retval, fd;
+    pid_t pid;
+
+    /* Initialize the command array with 0 */
+    memset(command, 0, sizeof(command));
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
     }
-    command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
+    /* Open the system log that's for records if something goes wrong */
+    openlog(NULL, LOG_PID, LOG_SYSLOG);
 
 /*
  * TODO
@@ -92,8 +155,43 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    fd = open(outputfile, O_CREAT | O_RDWR);
+    if (fd == -1) {
+        syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+        goto ERROR;
+    }
 
+    if ((pid = fork()) == -1) {
+        syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+        goto ERROR;
+    } else if (!pid) {
+        retval = dup2(fd, STDOUT_FILENO);
+        if (retval == -1 || execv(command[0], command) == -1) {
+            syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+            va_end(args);
+            file_close(fd);
+            closelog();
+            exit(EXIT_FAILURE);
+        }
+    } else if (waitpid(pid, &retval, 0) != -1) {
+        if (WIFEXITED(retval) && !WEXITSTATUS(retval)) {
+            goto SUCCESS;
+        } else {
+            syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+            goto ERROR;
+        }
+    } else {
+        syslog(LOG_ERR | LOG_SYSLOG, "[%s] err: %d, %s. line: %d", __func__, errno, strerror(errno), __LINE__);
+    }
+
+ERROR:;
     va_end(args);
-
+    file_close(fd);
+    closelog();
+    return false;
+SUCCESS:;
+    va_end(args);
+    file_close(fd);
+    closelog();
     return true;
 }

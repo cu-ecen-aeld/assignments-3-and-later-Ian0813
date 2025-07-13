@@ -9,3 +9,8 @@ test.sh.log
 aesdsocket
 server/aesdsocket
 server/valgrind-out.txt
+actions-runner
+testfile.txt
+server/test
+server/socket_test.sh
+server/english.txt
